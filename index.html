@@ -99,11 +99,15 @@ function seedAll(){
   en.push({id:id++,date:'2026-10-0'+d,shift:sh,cust:c.id,cat:c.cat,type:c.type,qty:q,fat,snf,rate,amt:+(q*rate).toFixed(2)})}));
  const sa=[['2026-10-02','Dairy Plant 1','Buffalo',800,52],['2026-10-03','Dairy Plant 1','Cow',500,40],['2026-10-04','Sweet Shop','Buffalo',600,54],['2026-10-05','Dairy Plant 2','Buffalo',900,52],['2026-10-06','Dairy Plant 1','Cow',400,40],['2026-10-07','Sweet Shop','Buffalo',700,54]]
   .map((x,i)=>({id:i+1,date:x[0],buyer:x[1],type:x[2],qty:x[3],rate:x[4],amt:x[3]*x[4]}));
- return{customers:cu,categories:SEED.categories,milkEntries:en,sales:sa,settings:SEED.settings};
+ const adj=[['2026-10-03','CUST-001','Ghee',2,600],['2026-10-05','CUST-002','Paneer',1.5,320],['2026-10-06','CUST-001','Cash',0,1000]].map((x,i)=>({id:i+1,date:x[0],cust:x[1],kind:x[2]=='Cash'?'Cash':'Goods',item:x[2],qty:x[3],amt:x[4]}));
+ return{adjustments:adj,customers:cu,categories:SEED.categories,milkEntries:en,sales:sa,settings:SEED.settings};
 }
 /* ================= BUSINESS LOGIC (pure) ================= */
 /* Demo rate chart. Replace this one function with the client's real chart later. */
-function chartRate(fat,snf){return Math.floor(38+5*(fat-5)+5*(snf-8))}
+const fml=(f,s)=>Math.floor(38+5*(f-5)+5*(s-8));
+function defChart(){const fats=[],snfs=[],cells={};for(let f=35;f<=65;f++)fats.push(f/10);for(let x=78;x<=88;x++)snfs.push(x/10);fats.forEach(f=>snfs.forEach(x=>cells[f+'|'+x]=fml(f,x)));return{fats,snfs,cells}}
+function chartRate(fat,snf){const c=S.chart;if(!c)return fml(fat,snf);const near=(a,v)=>a.reduce((b,x)=>Math.abs(x-v)<Math.abs(b-v)?x:b,a[0]);const v=c.cells[near(c.fats,fat)+'|'+near(c.snfs,snf)];return v==null?fml(fat,snf):+v}
+const KF=e=>e.kf!=null?e.kf:+(e.qty*e.fat/100).toFixed(3);const K3=n=>(+n).toFixed(3)+' kg';
 function rateFor(cat,fat,snf){return chartRate(fat,snf)+((cat?cat.rate:40)-40)}
 const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
 const inRange=(d,f,t)=>d>=f&&d<=t;
@@ -117,11 +121,11 @@ function catTotals(en){
  return{rows:t,qty:sum(t,x=>x.qty),amt:sum(t,x=>x.amt)};
 }
 /* ================= STORAGE ================= */
-const KEYS=['customers','categories','milkEntries','sales','settings'];
+const KEYS=['customers','categories','milkEntries','sales','settings','adjustments'];
 let S={};
-function loadAll(){const seed=seedAll();KEYS.forEach(k=>{try{S[k]=JSON.parse(localStorage.getItem('dairy_'+k))||seed[k]}catch(e){S[k]=seed[k]}});S.settings=Object.assign({},SEED.settings,S.settings)}
-function save(){KEYS.forEach(k=>localStorage.setItem('dairy_'+k,JSON.stringify(S[k])))}
-function resetDemo(){KEYS.forEach(k=>localStorage.removeItem('dairy_'+k));loadAll();go('dash')}
+function loadAll(){const seed=seedAll();KEYS.forEach(k=>{try{S[k]=JSON.parse(localStorage.getItem('dairy_'+k))||seed[k]}catch(e){S[k]=seed[k]}});S.settings=Object.assign({},SEED.settings,S.settings);try{S.chart=JSON.parse(localStorage.getItem('dairy_chart'))||defChart()}catch(e){S.chart=defChart()}}
+function save(){localStorage.setItem('dairy_chart',JSON.stringify(S.chart));KEYS.forEach(k=>localStorage.setItem('dairy_'+k,JSON.stringify(S[k])))}
+function resetDemo(){localStorage.removeItem('dairy_chart');KEYS.forEach(k=>localStorage.removeItem('dairy_'+k));loadAll();go('dash')}
 /* ================= HELPERS ================= */
 const $=id=>document.getElementById(id);
 const L=n=>(+n).toLocaleString('en-IN',{maximumFractionDigits:1})+' L';
@@ -137,7 +141,7 @@ function modal(title,body,onSave,label){
 }
 function closeM(){$('ov').style.display='none'}
 /* ================= NAVIGATION ================= */
-const NAV=[['dash','Dashboard'],['entry','New Milk Entry',1],['daily','Daily Collection',1],['cust','Customers'],['cats','Rate Categories'],['chart','Rate Chart'],['sales','Milk Sales'],['stock','Milk Stock'],['week','Weekly Summary'],['stmt','Customer Statement'],['rep','Reports'],['set','Settings']];
+const NAV=[['dash','Dashboard'],['entry','New Milk Entry',1],['daily','Daily Collection',1],['cust','Customers'],['cats','Rate Categories'],['chart','Rate Chart'],['sales','Milk Sales'],['adj','Goods & Cash'],['stock','Milk Stock'],['week','Weekly Summary'],['stmt','Customer Statement'],['rep','Reports'],['set','Settings']];
 let cur='dash';
 function go(v){cur=v;$('side').classList.remove('open');
  $('side').innerHTML='<div class="brand">'+S.settings.dairy+'</div><button class="lang" onclick="toggleLang()">'+(LANG=='hi'?'English':'हिंदी')+'</button>'+NAV.map(n=>(n[0]=='entry'?'<div class="grp">Milk Collection</div>':'')+`<a class="${n[2]?'sub ':''}${n[0]==v?'on':''}" onclick="go('${n[0]}')">${n[1]}</a>`).join('')+'<a onclick="if(confirm(\'Reset all demo data?\'))resetDemo()" class="sub muted" style="margin-top:14px">Reset demo data</a>';
@@ -162,20 +166,21 @@ VIEWS.entry=()=>`<h1>New Milk Entry</h1><div class="sec"><div class="f">
  <div><label>Quantity (L)</label><input type="number" id="e_qty" step="0.1" oninput="entryCalc()"></div>
  <div><label>Fat %</label><input type="number" id="e_fat" step="0.1" value="5.5" oninput="entryCalc()"></div>
  <div><label>SNF %</label><input type="number" id="e_snf" step="0.1" value="8.4" oninput="entryCalc()"></div>
+ <div><label>Kg-Fat (Qty × Fat ÷ 100)</label><input id="e_kf" readonly></div>
  <div><label>Applicable Rate (₹/L)</label><input id="e_rate" readonly></div>
  <div class="w"><label>Total Amount</label><input id="e_amt" readonly style="font-weight:700"></div></div>
  <div id="e_msg"></div><div style="margin-top:12px"><button class="p" onclick="entrySave()">Add Entry</button></div></div>
  <div class="sec"><h2>Recent entries</h2>${entryTable(S.milkEntries.slice(-8).reverse())}</div>`;
 INIT.entry=()=>entryFill();
 function entryFill(){const c=S.customers.find(x=>x.id==$('e_cust').value);if(!c)return;$('e_cat').value='Category '+c.cat+' · '+c.type;entryCalc()}
-function entryCalc(){const c=S.customers.find(x=>x.id==$('e_cust').value);if(!c)return;const r=rateFor(catOf(c.cat),+$('e_fat').value,+$('e_snf').value);$('e_rate').value=R(r);$('e_amt').value=R((+$('e_qty').value||0)*r)}
+function entryCalc(){const c=S.customers.find(x=>x.id==$('e_cust').value);if(!c)return;const r=rateFor(catOf(c.cat),+$('e_fat').value,+$('e_snf').value);$('e_kf').value=K3((+$('e_qty').value||0)*(+$('e_fat').value||0)/100);$('e_rate').value=R(r);$('e_amt').value=R((+$('e_qty').value||0)*r)}
 function entrySave(){const c=S.customers.find(x=>x.id==$('e_cust').value),q=+$('e_qty').value,fat=+$('e_fat').value,snf=+$('e_snf').value;
  if(!c||q<=0||!fat||!snf){$('e_msg').innerHTML='<div class="warn">Please enter quantity, fat and SNF.</div>';return}
  const rate=rateFor(catOf(c.cat),fat,snf);
- S.milkEntries.push({id:Date.now(),date:$('e_date').value,shift:$('e_shift').value,cust:c.id,cat:c.cat,type:c.type,qty:q,fat,snf,rate,amt:+(q*rate).toFixed(2)});save();go('entry');
+ S.milkEntries.push({id:Date.now(),date:$('e_date').value,shift:$('e_shift').value,cust:c.id,cat:c.cat,type:c.type,qty:q,fat,snf,kf:+(q*fat/100).toFixed(3),rate,amt:+(q*rate).toFixed(2)});save();go('entry');
  $('e_msg').innerHTML='<div class="note">Entry added. Dashboard and stock updated.</div>'}
-function entryTable(en,withTot){const rows=en.map(e=>[dmy(e.date),e.shift,custName(e.cust),e.cat,e.type,L(e.qty),e.fat,e.snf,R(e.rate),R(e.amt)]);
- return table([['Date'],['Shift'],['Customer'],['Cat'],['Milk Type'],['Qty',1],['Fat',1],['SNF',1],['Rate',1],['Amount',1]],rows,withTot?['TOTAL','','','','',L(sum(en,e=>e.qty)),'','','',R(sum(en,e=>e.amt))]:null)}
+function entryTable(en,withTot){const rows=en.map(e=>[dmy(e.date),e.shift,custName(e.cust),e.cat,e.type,L(e.qty),e.fat,e.snf,K3(KF(e)),R(e.rate),R(e.amt)]);
+ return table([['Date'],['Shift'],['Customer'],['Cat'],['Milk Type'],['Qty',1],['Fat',1],['SNF',1],['Kg-Fat',1],['Rate',1],['Amount',1]],rows,withTot?['TOTAL','','','','',L(sum(en,e=>e.qty)),'','',K3(sum(en,KF)),'',R(sum(en,e=>e.amt))]:null)}
 /* --- Daily Collection with filters --- */
 VIEWS.daily=()=>`<h1>Daily Collection</h1><div class="bar">
  <div><label>Date</label><input type="date" id="f_date" value="${S.settings.weekTo}" onchange="dailyRender()"></div>
@@ -211,13 +216,17 @@ VIEWS.cats=()=>{const ct=catTotals(weekStats().en);return`<h1>Rate Categories</h
 function catForm(id){const c=catOf(id);modal('Edit Rate – Category '+c.id,`<div class="f"><div><label>Category name</label><input id="m_n" value="${c.name}"></div><div><label>Milk type</label><select id="m_t">${opts(['Buffalo','Cow'],c.type)}</select></div>
  <div><label>Base rate (₹/L)</label><input type="number" id="m_r" value="${c.rate}"></div><div><label>Status</label><select id="m_s">${opts(['Active','Inactive'],c.status)}</select></div></div>
  <p class="muted">New rate applies to new entries; old entries keep their rate.</p>`,()=>{c.name=$('m_n').value||c.name;c.type=$('m_t').value;c.rate=+$('m_r').value;c.status=$('m_s').value;save();go('cats')})}
-/* --- Rate Chart --- */
-VIEWS.chart=()=>{const fats=[4.5,5,5.2,5.5,5.8,6,6.5],snfs=[8,8.2,8.4,8.5,8.6,8.8];
- return`<h1>Rate Chart</h1><div class="warn" style="background:#F5F5F2;border-color:#D9D9D4;color:#555">Demo values only – not the client's actual rates. The real chart will replace the function <code>chartRate()</code>.</div>
+/* --- Rate Chart (editable) --- */
+VIEWS.chart=()=>{const c=S.chart;return`<h1>Rate Chart</h1><div class="note">Edit any cell – it saves automatically and applies to new entries. Demo values: enter the client's real rates here.</div>
  <div class="sec"><h2>Rate finder</h2><div class="bar"><div><label>Category</label><select id="r_c" onchange="chartCalc()">${opts(S.categories.map(c=>c.id))}</select></div><div><label>Fat %</label><input type="number" id="r_f" step="0.1" value="5.5" oninput="chartCalc()"></div><div><label>SNF %</label><input type="number" id="r_s" step="0.1" value="8.4" oninput="chartCalc()"></div><div><label>Rate</label><input id="r_o" readonly style="font-weight:700"></div></div></div>
- <div class="sec"><h2>Fat × SNF matrix (base chart, ₹/L)</h2>${table([['Fat \\ SNF'],...snfs.map(s=>[s,1])],fats.map(f=>[f,...snfs.map(s=>chartRate(f,s))]))}</div>`};
+ <div class="sec"><h2>Fat × SNF matrix (₹/L)</h2><div class="bar"><button onclick="chartAdd('fat')">Add Fat row</button><button onclick="chartAdd('snf')">Add SNF column</button><button onclick="chartReset()">Reset chart</button></div>
+ <div class="tw"><table><tr><th>Fat \\ SNF</th>${c.snfs.map(x=>`<th class="n">${x}</th>`).join('')}</tr>${c.fats.map(f=>`<tr><td><b>${f}</b></td>${c.snfs.map(x=>`<td class="n"><input type="number" value="${c.cells[f+'|'+x]}" style="width:90px;padding:6px" onchange="chartSet('${f}','${x}',this.value)"></td>`).join('')}</tr>`).join('')}</table></div></div>`};
 INIT.chart=()=>chartCalc();
 function chartCalc(){$('r_o').value=R(rateFor(catOf($('r_c').value),+$('r_f').value,+$('r_s').value))+' /L'}
+function chartSet(f,x,v){S.chart.cells[f+'|'+x]=+v;save();chartCalc()}
+function chartAdd(k){const v=parseFloat(prompt(k=='fat'?'New Fat % value (e.g. 6.7)':'New SNF % value (e.g. 8.9)'));if(isNaN(v))return;const c=S.chart,a=k=='fat'?c.fats:c.snfs;if(!a.includes(v)){a.push(v);a.sort((x,y)=>x-y)}
+ c.fats.forEach(f=>c.snfs.forEach(x=>{if(c.cells[f+'|'+x]==null)c.cells[f+'|'+x]=fml(f,x)}));save();go('chart')}
+function chartReset(){if(confirm('Reset chart to demo values?')){S.chart=defChart();save();go('chart')}}
 /* --- Sales --- */
 VIEWS.sales=()=>{const w=weekStats();return`<h1>Milk Sales</h1><div class="bar"><div class="card g"><div class="l">Available stock</div><div class="v">${L(w.bal)}</div></div><div style="margin-left:auto"><button class="p" onclick="saleForm()">+ Add Sale</button></div></div>
  <div class="sec">${table([['Date'],['Buyer'],['Milk Type'],['Qty',1],['Rate',1],['Amount',1]],w.sl.map(s=>[dmy(s.date),s.buyer,s.type,L(s.qty),R(s.rate),R(s.amt)]),['TOTAL','','',L(w.sold),'',R(sum(w.sl,s=>s.amt))])}</div>`};
@@ -229,6 +238,14 @@ function saleForm(){const w=weekStats();modal('Add Sale',`<div class="muted">Ava
  if(q>bal){$('m_w').innerHTML=`<div class="warn">Cannot sell ${L(q)} – only ${L(bal)} available.</div>`;return false}
  const r=+$('m_r').value;S.sales.push({id:Date.now(),date:$('m_d').value,buyer:$('m_b').value,type:$('m_t').value,qty:q,rate:r,amt:q*r});save();go('sales')})}
 function saleCalc(){$('m_a').value=R((+$('m_q').value||0)*(+$('m_r').value||0))}
+/* --- Goods & Cash (सामान / नकद) --- */
+VIEWS.adj=()=>`<h1>Goods &amp; Cash</h1><div class="muted">Ghee, paneer or cash given to a customer is deducted from his milk amount.</div><div class="bar"><div style="margin-left:auto"><button class="p" onclick="adjForm()">+ Add Goods / Cash</button></div></div><div class="sec">${table([['Date'],['Customer'],['Type'],['Item'],['Qty',1],['Amount',1]],S.adjustments.map(a=>[dmy(a.date),custName(a.cust),a.kind,a.item,a.qty||'-',R(a.amt)]),['TOTAL','','','','',R(sum(S.adjustments,a=>a.amt))])}</div>`;
+function adjForm(){modal('Add Goods / Cash',`<div class="f"><div><label>Date</label><input type="date" id="m_d" value="${S.settings.weekTo}"></div><div><label>Customer</label><select id="m_c">${opts(S.customers.map(c=>[c.id,c.id+' – '+c.name]))}</select></div>
+ <div><label>Item</label><select id="m_i">${opts(['Ghee','Paneer','Other','Cash'])}</select></div><div><label>Quantity</label><input type="number" id="m_q" step="0.1" oninput="adjCalc()"></div>
+ <div><label>Rate (₹)</label><input type="number" id="m_r" oninput="adjCalc()"></div><div><label>Amount (₹)</label><input type="number" id="m_a"></div></div><div id="m_w"></div>`,()=>{
+ const a=+$('m_a').value;if(a<=0){$('m_w').innerHTML='<div class="warn">Enter amount.</div>';return false}
+ const it=$('m_i').value;S.adjustments.push({id:Date.now(),date:$('m_d').value,cust:$('m_c').value,kind:it=='Cash'?'Cash':'Goods',item:it,qty:+$('m_q').value||0,amt:a});save();go('adj')})}
+function adjCalc(){$('m_a').value=((+$('m_q').value||0)*(+$('m_r').value||0))||''}
 /* --- Stock --- */
 VIEWS.stock=()=>{const w=weekStats(),ct=catTotals(w.en);return`<h1>Milk Stock</h1><div class="cards">${[['Previous Balance',w.prev],['New Purchase',w.pur],['Total Available',w.avail],['Total Sold',w.sold],['Current Balance',w.bal]].map((c,i)=>`<div class="card ${i==4?'g':''}"><div class="l">${c[0]}</div><div class="v">${L(c[1])}</div></div>`).join('')}</div>
  <div class="sec"><h2>Category-wise stock</h2>${table([['Category'],['Milk Type'],['Purchased',1],['Share of current balance',1]],ct.rows.map(x=>[x.c.name,x.c.type,L(x.qty),L(ct.qty?w.bal*x.qty/ct.qty:0)]),['TOTAL','',L(ct.qty),L(w.bal)])}<p class="muted">Sales are recorded per milk type, so category balance is shown as a proportional share (demo logic).</p></div>`};
@@ -253,8 +270,8 @@ function reportData(t,f,to){
  else if(t=='customer'){h=[['Customer'],['Category'],['Milk Type'],['Quantity',1],['Amount',1]];rows=S.customers.map(c=>{const e=en.filter(x=>x.cust==c.id);return[c.id+' '+c.name,c.cat,c.type,L(sum(e,x=>x.qty)),R(sum(e,x=>x.amt))]});tot=['TOTAL','','',L(sum(en,e=>e.qty)),R(sum(en,e=>e.amt))]}
  else if(t=='sales'){h=[['Date'],['Buyer'],['Type'],['Qty',1],['Rate',1],['Amount',1]];rows=sl.map(s=>[dmy(s.date),s.buyer,s.type,L(s.qty),R(s.rate),R(s.amt)]);tot=['TOTAL','','',L(sum(sl,s=>s.qty)),'',R(sum(sl,s=>s.amt))]}
  else if(t=='stock'){h=[['Item'],['Quantity',1]];rows=[['Previous Balance',L(w.prev)],['New Purchase',L(w.pur)],['Total Available',L(w.avail)],['Total Sold',L(w.sold)]];tot=['Current Balance',L(w.bal)]}
- else{const e=t=='daily'?en.filter(x=>x.date==to):en;h=[['Date'],['Shift'],['Customer'],['Cat'],['Type'],['Qty',1],['Fat',1],['SNF',1],['Rate',1],['Amount',1]];
-  rows=e.map(x=>[dmy(x.date),x.shift,custName(x.cust),x.cat,x.type,L(x.qty),x.fat,x.snf,R(x.rate),R(x.amt)]);tot=['TOTAL','','','','',L(sum(e,x=>x.qty)),'','','',R(sum(e,x=>x.amt))]}
+ else{const e=t=='daily'?en.filter(x=>x.date==to):en;h=[['Date'],['Shift'],['Customer'],['Cat'],['Type'],['Qty',1],['Fat',1],['SNF',1],['Kg-Fat',1],['Rate',1],['Amount',1]];
+  rows=e.map(x=>[dmy(x.date),x.shift,custName(x.cust),x.cat,x.type,L(x.qty),x.fat,x.snf,K3(KF(x)),R(x.rate),R(x.amt)]);tot=['TOTAL','','','','',L(sum(e,x=>x.qty)),'','',K3(sum(e,KF)),'',R(sum(e,x=>x.amt))]}
  return{title,h,rows,tot,period:dmy(f)+' – '+dmy(to),sum:{prev:w.prev,sold:sum(sl,s=>s.qty),close:w.bal}};
 }
 function repRender(){const d=reportData($('p_t').value,$('p_f').value,$('p_to').value);$('p_out').innerHTML=`<h2>${d.title} · ${d.period}</h2>`+table(d.h,d.rows,d.tot)+`<p>Previous balance: <b>${L(d.sum.prev)}</b> · Milk sold: <b>${L(d.sum.sold)}</b> · Closing balance: <b>${L(d.sum.close)}</b></p>`}
@@ -275,14 +292,17 @@ VIEWS.stmt=()=>`<h1>Customer Statement</h1><div class="bar"><div><label>Customer
  <div style="margin-left:auto"><button class="p" onclick="stmtPrint()">Generate PDF</button> <button onclick="stmtShare()">Share</button></div></div><div class="sec" id="s_out"></div>`;
 INIT.stmt=()=>stmtRender();
 function stmtOpen(id){stmtCust=id;go('stmt')}
+let d_net=0,net=0;
 function stmtData(){const c=S.customers.find(x=>x.id==$('s_c').value),f=$('s_f').value,t=$('s_t').value,en=S.milkEntries.filter(e=>e.cust==c.id&&inRange(e.date,f,t));
  const days=[...new Set(en.map(e=>e.date))].sort(),avg=(a,k)=>a.length?(sum(a,x=>x[k])/a.length).toFixed(1):'-';
- const rows=days.map(d=>{const a=en.filter(e=>e.date==d),m=sum(a.filter(e=>e.shift=='Morning'),e=>e.qty),ev=sum(a.filter(e=>e.shift=='Evening'),e=>e.qty),amt=sum(a,e=>e.amt);return[dmy(d),m?L(m):'-',ev?L(ev):'-',L(m+ev),avg(a,'fat'),avg(a,'snf'),R(amt/(m+ev)),R(amt)]});
+ const rows=days.map(d=>{const a=en.filter(e=>e.date==d),m=sum(a.filter(e=>e.shift=='Morning'),e=>e.qty),ev=sum(a.filter(e=>e.shift=='Evening'),e=>e.qty),amt=sum(a,e=>e.amt);return[dmy(d),m?L(m):'-',ev?L(ev):'-',L(m+ev),avg(a,'fat'),avg(a,'snf'),K3(sum(a,KF)),R(amt/(m+ev)),R(amt)]});
  const q=sum(en,e=>e.qty),amt=sum(en,e=>e.amt);
- return{c,period:dmy(f)+' – '+dmy(t),head:[['Date'],['Morning',1],['Evening',1],['Total Qty',1],['Fat',1],['SNF',1],['Rate',1],['Amount',1]],rows,tot:['TOTAL MILK','','',L(q),'','','',R(amt)],q,amt,hdr:`<p><b>${c.name}</b> · ${c.id} · Category ${c.cat} · ${c.type}</p>`}}
-function stmtRender(){const d=stmtData();$('s_out').innerHTML=d.hdr+table(d.head,d.rows,d.tot)+`<p>Total Milk: <b>${L(d.q)}</b> · Total Amount: <b>${R(d.amt)}</b></p>`}
-function stmtPrint(){const d=stmtData();printDoc('Customer Statement',d.period,d.hdr+table(d.head,d.rows,d.tot))}
-function stmtShare(){const d=stmtData();shareDoc('Statement – '+d.c.name,`Period: ${d.period}\nTotal milk: ${L(d.q)}\nTotal amount: ${R(d.amt)}`)}
+ return{c,period:dmy(f)+' – '+dmy(t),head:[['Date'],['Morning',1],['Evening',1],['Total Qty',1],['Fat',1],['SNF',1],['Kg-Fat',1],['Rate',1],['Amount',1]],rows,tot:['TOTAL MILK','','',L(q),'','',K3(sum(en,KF)),'',R(amt)],q,amt,hdr:`<p><b>${c.name}</b> · ${c.id} · Category ${c.cat} · ${c.type}</p>`,
+  adj:(()=>{const ad=S.adjustments.filter(a=>a.cust==c.id&&inRange(a.date,f,t)),g=sum(ad.filter(a=>a.kind=='Goods'),a=>a.amt),ca=sum(ad.filter(a=>a.kind=='Cash'),a=>a.amt);net=amt-g-ca;
+   d_net=net;return`<h2 style="margin-top:14px">Goods &amp; Cash</h2>`+(ad.length?table([['Date'],['Type'],['Item'],['Qty',1],['Amount',1]],ad.map(a=>[dmy(a.date),a.kind,a.item,a.qty||'-',R(a.amt)]),['TOTAL','','','',R(g+ca)]):'<p class="muted">-</p>')+`<p>Milk amount: <b>${R(amt)}</b><br>Goods: <b>− ${R(g)}</b><br>Cash: <b>− ${R(ca)}</b><br><span style="font-size:1.2em">Net payable: <b>${R(net)}</b></span></p>`})(),get net(){return d_net}}}
+function stmtRender(){const d=stmtData();$('s_out').innerHTML=d.hdr+table(d.head,d.rows,d.tot)+`<p>Total Milk: <b>${L(d.q)}</b> · Total Amount: <b>${R(d.amt)}</b></p>`+d.adj}
+function stmtPrint(){const d=stmtData();printDoc('Customer Statement',d.period,d.hdr+table(d.head,d.rows,d.tot)+d.adj)}
+function stmtShare(){const d=stmtData();shareDoc('Statement – '+d.c.name,`Period: ${d.period}\nTotal milk: ${L(d.q)}\nTotal amount: ${R(d.amt)}\nNet payable: ${R(d.net)}`)}
 /* --- Settings --- */
 VIEWS.set=()=>{const s=S.settings;return`<h1>Settings</h1><div class="sec"><div class="f"><div><label>Dairy Name</label><input id="t_d" value="${s.dairy}"></div><div><label>Contact Number</label><input id="t_p" value="${s.phone}"></div>
  <div class="w"><label>Address</label><input id="t_a" value="${s.addr}"></div><div><label>Default Currency</label><input value="${s.currency}" readonly></div><div><label>Default Milk Unit</label><input value="${s.unit}" readonly></div>
@@ -293,7 +313,7 @@ function setSave(){const s=S.settings;s.dairy=$('t_d').value;s.phone=$('t_p').va
 /* ================= LANGUAGE (Hindi / English) ================= */
 let LANG=localStorage.getItem('dairy_lang')||'en';
 function toggleLang(){LANG=LANG=='hi'?'en':'hi';localStorage.setItem('dairy_lang',LANG);go(cur)}
-const HI={'More':'और','Reset demo data':'डेमो डेटा वापस करें','Milk Collection':'दूध संग्रह','New Milk Entry':'नई दूध एंट्री','Daily Collection':'रोज़ का दूध','Rate Categories':'रेट श्रेणी','Rate Chart':'रेट चार्ट','Milk Sales':'दूध बिक्री','Milk Stock':'दूध स्टॉक','Weekly Summary':'हफ़्ते का हिसाब','Customer Statement':'ग्राहक का हिसाब','Customers':'ग्राहक','Customer':'ग्राहक','Dashboard':'मुख्य पेज','Reports':'रिपोर्ट','Report':'रिपोर्ट','Settings':'सेटिंग',
+const HI={'More':'और','Goods & Cash':'सामान और नकद','Goods &amp; Cash':'सामान और नकद','Goods / Cash':'सामान / नकद','Goods':'सामान','Cash':'नकद','Ghee':'घी','Paneer':'पनीर','Other':'अन्य','Type':'प्रकार','Kg-Fat (Qty × Fat ÷ 100)':'किलो-फैट (मात्रा × फैट ÷ 100)','Kg-Fat':'किलो-फैट','Net payable':'देय रकम','Milk amount':'दूध की रकम','Add Fat row':'फैट पंक्ति जोड़ें','Add SNF column':'SNF कॉलम जोड़ें','Reset chart':'चार्ट रीसेट करें','Edit any cell – it saves automatically and applies to new entries. Demo values: enter the client\'s real rates here.':'किसी भी खाने में रेट बदलें, अपने आप सेव होगा और नई एंट्री पर लगेगा। ये डेमो रेट हैं, असली रेट यहाँ भरें।','Ghee, paneer or cash given to a customer is deducted from his milk amount.':'ग्राहक को दिया घी, पनीर या नकद उसकी दूध की रकम में से घटाया जाता है।','Enter amount.':'रकम लिखें।','Quantity':'मात्रा','Amount (₹)':'रकम (₹)','Rate (₹)':'रेट (₹)','Item':'सामान','Reset demo data':'डेमो डेटा वापस करें','Milk Collection':'दूध संग्रह','New Milk Entry':'नई दूध एंट्री','Daily Collection':'रोज़ का दूध','Rate Categories':'रेट श्रेणी','Rate Chart':'रेट चार्ट','Milk Sales':'दूध बिक्री','Milk Stock':'दूध स्टॉक','Weekly Summary':'हफ़्ते का हिसाब','Customer Statement':'ग्राहक का हिसाब','Customers':'ग्राहक','Customer':'ग्राहक','Dashboard':'मुख्य पेज','Reports':'रिपोर्ट','Report':'रिपोर्ट','Settings':'सेटिंग',
 'Previous Week Balance':'पिछले हफ़्ते का बचा दूध','Previous Balance':'पिछला बचा दूध','This Week Purchase':'इस हफ़्ते की खरीद','Current Week Purchase':'इस हफ़्ते की खरीद','New Purchase':'नई खरीद','Total Available':'कुल उपलब्ध दूध','Total Sold':'कुल बिका दूध','Current Balance':'अभी बचा दूध','Closing Balance':'अंतिम बचा दूध','Milk Sold':'बिका दूध','Business flow':'काम का क्रम','Category summary':'श्रेणी अनुसार हिसाब','Category-wise stock':'श्रेणी अनुसार स्टॉक','Category totals':'श्रेणी अनुसार कुल',
 'Category':'श्रेणी','Milk Type':'दूध का प्रकार','Milk type':'दूध का प्रकार','Quantity Sold (L)':'बेचा गया दूध (लीटर)','Quantity (L)':'मात्रा (लीटर)','Quantity':'मात्रा','Qty':'मात्रा','Avg Rate':'औसत रेट','Rate':'रेट','Amount':'रकम','FINAL TOTAL':'कुल योग','TOTAL MILK':'कुल दूध','TOTAL':'कुल','Total Qty':'कुल मात्रा','Total Amount':'कुल रकम','Total milk':'कुल दूध','Total Milk':'कुल दूध','Cow':'गाय','Buffalo':'भैंस','Morning':'सुबह','Evening':'शाम','Shift':'समय','Date from':'तारीख से','Date to':'तारीख तक','Date':'तारीख','From':'से','To':'तक','Search customer':'ग्राहक खोजें','Search':'खोजें','All':'सभी','Name or ID':'नाम या ID',
 'Add Entry':'एंट्री जोड़ें','Recent entries':'हाल की एंट्री','Applicable Rate (₹/L)':'लागू रेट (₹/लीटर)','Category / Milk Type':'श्रेणी / दूध प्रकार','Total Amount':'कुल रकम','Fat %':'फैट %','SNF %':'SNF %','Fat':'फैट',
