@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2E6B4A">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Dairy Milk Management – Prototype</title>
+<style>
+/* ===== BASE ===== */
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.55 "Noto Sans","Noto Sans Devanagari","Segoe UI",system-ui,Arial,sans-serif;color:#1f1f1f;background:#fff}
+h1{font-size:30px;margin:0 0 4px}h2{font-size:21px;margin:0 0 10px}
+.muted{color:#5A5A5A}.r{text-align:right}.ok{color:#2f6b3f}.amber{color:#B7791F}.bad{color:#b3261e}
+/* ===== LAYOUT ===== */
+#side{position:fixed;left:0;top:0;bottom:0;width:260px;border-right:1px solid #D9D9D4;background:#F5F5F2;padding:14px 0;overflow:auto}
+#side .brand{padding:0 16px 12px;font-weight:700;border-bottom:1px solid #D9D9D4;margin-bottom:8px}
+#side a{display:block;font-size:18px;padding:10px 16px;color:#1f1f1f;text-decoration:none;cursor:pointer}
+#side a.sub{padding-left:30px;font-size:13px}
+#side a.on{background:#fff;font-weight:600;border-left:4px solid #2E6B4A;color:#2E6B4A;padding-left:13px}
+#side a.sub.on{padding-left:27px}
+#main{margin-left:260px;padding:22px 26px;max-width:1250px}
+#menu{display:none;margin:10px;padding:6px 10px}
+/* ===== COMPONENTS ===== */
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:14px 0}
+.card{border:1px solid #D9D9D4;border-radius:6px;padding:12px;background:#fff}
+.card.g{background:#EAF2EC;border-color:#9bc4a6}.card .l{color:#555;font-size:16px}.card .v{font-size:28px;font-weight:700;margin-top:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sec{border:1px solid #D9D9D4;border-radius:6px;padding:14px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;border-bottom:1px solid #e5e5e5;text-align:left;white-space:nowrap}
+th{background:#EAEFEA;font-size:15px;position:sticky;top:0}
+td.n,th.n{text-align:right}tr.tot td{font-weight:700;background:#F5F5F2;border-top:1px solid #999}
+.tw{overflow:auto;max-height:520px}.grp{padding:10px 16px 2px;font-size:14px;color:#777;text-transform:uppercase}.lang{margin:0 16px 10px;width:calc(100% - 32px)}
+button{font:inherit;font-weight:600;border:1px solid #888;background:#fff;padding:10px 18px;border-radius:5px;cursor:pointer}
+button.p{background:#2E6B4A;color:#fff;border-color:#2E6B4A}
+button.s{padding:6px 12px;font-size:15px}
+input,select{font:inherit;padding:10px 12px;border:1px solid #888;border-radius:5px;background:#fff;width:100%}
+label{display:block;font-size:16px;font-weight:600;color:#333;margin-bottom:3px}
+.f{display:grid;grid-template-columns:1fr 1fr;gap:12px}.f>div.w{grid-column:1/-1}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:10px 0}.bar>div{min-width:130px}
+.tag{border:1px solid #ccc;border-radius:4px;padding:2px 10px;font-size:15px;background:#F5F5F2}
+.tag.a{border-color:#9bc4a6;color:#2f6b3f;background:#eef6f0}.tag.i{color:#777}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:16px}
+.flow span{border:1px solid #ccc;padding:4px 8px;border-radius:4px;background:#F5F5F2}.flow i{font-style:normal;color:#888}
+.eq{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.eq .card{min-width:150px}.eq b{font-size:28px}
+.warn,.note{font-size:17px}.warn{background:#fdecea;border:1px solid #e8b4af;color:#b3261e;padding:8px 10px;border-radius:5px;margin:8px 0}
+.note{background:#eef6f0;border:1px solid #9bc4a6;color:#2f6b3f;padding:8px 10px;border-radius:5px;margin:8px 0}
+#ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9;align-items:flex-start;justify-content:center;overflow:auto}
+#md{background:#fff;border-radius:8px;width:680px;max-width:94vw;margin:50px 0;padding:18px}
+#md .ft{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* ===== ACCESSIBILITY + DEVICE OPTIMISATION ===== */
+html{-webkit-text-size-adjust:100%}
+:focus-visible{outline:3px solid #2E6B4A;outline-offset:2px}
+button,select{min-height:46px}input{min-height:46px}
+#scrim,#bn{display:none}
+@media(min-width:1500px){body{font-size:18px}#main{max-width:1400px}}
+/* Tablet */
+@media(max-width:1100px){.cards{grid-template-columns:repeat(3,1fr)}.grid3{grid-template-columns:1fr 1fr}}
+/* Mobile + small tablet */
+@media(max-width:900px){
+ #side{display:block;transform:translateX(-105%);width:85vw;max-width:320px;z-index:20;background:#fff;box-shadow:2px 0 0 #D9D9D4}
+ #side.open{transform:none}
+ #scrim{z-index:15;position:fixed;inset:0;background:rgba(0,0,0,.4)}#side.open+#scrim{display:block}
+ #menu{display:block;position:sticky;top:0;z-index:10;width:100%;margin:0;border:0;border-bottom:1px solid #D9D9D4;border-radius:0;text-align:left;padding:12px 16px;background:#fff;font-size:19px}
+ #main{margin-left:0;padding:14px 14px calc(90px + env(safe-area-inset-bottom))}
+ h1{font-size:25px}h2{font-size:19px}
+ .cards{grid-template-columns:1fr 1fr;gap:10px}.cards .card:last-child:nth-child(odd){grid-column:1/-1}
+ .card .v{font-size:23px}.grid2,.grid3,.f{grid-template-columns:1fr}
+ .bar{flex-direction:column;align-items:stretch}.bar>div{min-width:0;width:100%;margin-left:0!important}.bar button{width:100%;margin-bottom:6px}
+ .eq{flex-direction:column;align-items:stretch}.eq .card{min-width:0}.eq b{text-align:center}
+ .sec{padding:10px}.tw{max-height:none;-webkit-overflow-scrolling:touch}
+ th,td{padding:10px 10px}td:first-child,th:first-child{position:sticky;left:0;background:#fff;box-shadow:1px 0 0 #D9D9D4}th:first-child{background:#EAEFEA}tr.tot td:first-child{background:#F5F5F2}
+ #ov{align-items:stretch}#md{width:100vw;max-width:100vw;margin:0;border-radius:0;min-height:100vh;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+ #md .ft{position:sticky;bottom:0;background:#fff;padding:10px 0;flex-direction:column-reverse}#md .ft button{width:100%}
+ #bn{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:12;background:#fff;border-top:1px solid #D9D9D4;padding-bottom:env(safe-area-inset-bottom)}
+ #bn button{flex:1;border:0;border-radius:0;background:#fff;padding:8px 2px;font-size:14px;line-height:1.2;min-height:60px;color:#444}
+ #bn button.on{color:#2E6B4A;border-top:4px solid #2E6B4A;font-weight:700}
+}
+@media(max-width:380px){.cards{grid-template-columns:1fr}}
+</style></head><body>
+<button id="menu" onclick="document.getElementById('side').classList.toggle('open')">☰ Menu</button>
+<div id="side"></div><div id="scrim" onclick="document.getElementById('side').classList.remove('open')"></div><nav id="bn"></nav><div id="main"></div>
+<div id="ov"><div id="md"></div></div>
+<script>
+/* ================= MOCK DATA (separate from logic) ================= */
+const SEED={
+ settings:{dairy:'Demo Dairy Collection Centre',phone:'98XXXXXXXX',addr:'Bhopal, Madhya Pradesh',currency:'INR ₹',unit:'Litres',weekStart:'Thursday',footer:'Computer generated statement',opening:1500,weekFrom:'2026-10-01',weekTo:'2026-10-07'},
+ categories:[
+  {id:'A',name:'A',type:'Buffalo',rate:40,status:'Active'},{id:'B',name:'B',type:'Buffalo',rate:42,status:'Active'},
+  {id:'C',name:'C',type:'Buffalo',rate:44,status:'Active'},{id:'D',name:'D',type:'Cow',rate:38,status:'Active'},{id:'E',name:'E',type:'Cow',rate:40,status:'Active'}],
+ names:['Ramesh','Suresh','Mahesh','Dinesh','Rajesh','Kailash','Mohan','Gopal','Hari','Bhagwan','Shyam','Lakhan','Naresh','Vijay'],
+ cats:'AABBCCDEBCDEAC'
+};
+function seedAll(){
+ const cu=SEED.names.map((n,i)=>{const c=SEED.cats[i];return{id:'CUST-'+String(i+1).padStart(3,'0'),name:n,mobile:(97+i%3)+'XXXXXXXX',type:'ABC'.includes(c)?'Buffalo':'Cow',cat:c,status:i==13?'Inactive':'Active'}});
+ let s=7,rnd=()=>(s=(s*9301+49297)%233280)/233280,en=[],id=1;
+ for(let d=1;d<=7;d++)['Morning','Evening'].forEach(sh=>cu.filter(c=>c.status=='Active').slice(0,7+d%3).forEach(c=>{
+  const q=+(40+rnd()*70).toFixed(1),fat=+(c.type=='Cow'?(3.6+rnd()*.8):(5+rnd()*1)).toFixed(1),snf=+(8+rnd()*.7).toFixed(1);
+  const cat=SEED.categories.find(x=>x.id==c.cat),rate=rateFor(cat,fat,snf);
+  en.push({id:id++,date:'2026-10-0'+d,shift:sh,cust:c.id,cat:c.cat,type:c.type,qty:q,fat,snf,rate,amt:+(q*rate).toFixed(2)})}));
+ const sa=[['2026-10-02','Dairy Plant 1','Buffalo',800,52],['2026-10-03','Dairy Plant 1','Cow',500,40],['2026-10-04','Sweet Shop','Buffalo',600,54],['2026-10-05','Dairy Plant 2','Buffalo',900,52],['2026-10-06','Dairy Plant 1','Cow',400,40],['2026-10-07','Sweet Shop','Buffalo',700,54]]
+  .map((x,i)=>({id:i+1,date:x[0],buyer:x[1],type:x[2],qty:x[3],rate:x[4],amt:x[3]*x[4]}));
+ return{customers:cu,categories:SEED.categories,milkEntries:en,sales:sa,settings:SEED.settings};
+}
+/* ================= BUSINESS LOGIC (pure) ================= */
+/* Demo rate chart. Replace this one function with the client's real chart later. */
+function chartRate(fat,snf){return Math.floor(38+5*(fat-5)+5*(snf-8))}
+function rateFor(cat,fat,snf){return chartRate(fat,snf)+((cat?cat.rate:40)-40)}
+const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
+const inRange=(d,f,t)=>d>=f&&d<=t;
+function weekStats(){
+ const st=S.settings,en=S.milkEntries.filter(e=>inRange(e.date,st.weekFrom,st.weekTo)),sl=S.sales.filter(e=>inRange(e.date,st.weekFrom,st.weekTo));
+ const prev=+st.opening,pur=sum(en,e=>e.qty),avail=prev+pur,sold=sum(sl,e=>e.qty);
+ return{en,sl,prev,pur,avail,sold,bal:avail-sold,amt:sum(en,e=>e.amt)};
+}
+function catTotals(en){
+ const t=S.categories.map(c=>({c,qty:sum(en.filter(e=>e.cat==c.id),e=>e.qty),amt:sum(en.filter(e=>e.cat==c.id),e=>e.amt)}));
+ return{rows:t,qty:sum(t,x=>x.qty),amt:sum(t,x=>x.amt)};
+}
+/* ================= STORAGE ================= */
+const KEYS=['customers','categories','milkEntries','sales','settings'];
+let S={};
+function loadAll(){const seed=seedAll();KEYS.forEach(k=>{try{S[k]=JSON.parse(localStorage.getItem('dairy_'+k))||seed[k]}catch(e){S[k]=seed[k]}});S.settings=Object.assign({},SEED.settings,S.settings)}
+function save(){KEYS.forEach(k=>localStorage.setItem('dairy_'+k,JSON.stringify(S[k])))}
+function resetDemo(){KEYS.forEach(k=>localStorage.removeItem('dairy_'+k));loadAll();go('dash')}
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id);
+const L=n=>(+n).toLocaleString('en-IN',{maximumFractionDigits:1})+' L';
+const R=n=>'₹'+(+n).toLocaleString('en-IN',{maximumFractionDigits:2});
+const dmy=d=>d.split('-').reverse().join('/');
+const opts=(a,sel,all)=>(all?`<option value="">${all}</option>`:'')+a.map(x=>{const v=Array.isArray(x)?x[0]:x,t=Array.isArray(x)?x[1]:x;return`<option value="${v}" ${v==sel?'selected':''}>${t}</option>`}).join('');
+const custName=id=>(S.customers.find(c=>c.id==id)||{}).name||id;
+const catOf=id=>S.categories.find(c=>c.id==id);
+const table=(head,rows,tot)=>`<div class="tw"><table><tr>${head.map(h=>`<th class="${h[1]?'n':''}">${h[0]}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${head[i][1]?'n':''}">${c}</td>`).join('')}</tr>`).join('')}${tot?`<tr class="tot">${tot.map((c,i)=>`<td class="${head[i][1]?'n':''}">${c}</td>`).join('')}</tr>`:''}</table></div>`;
+function modal(title,body,onSave,label){
+ $('md').innerHTML=`<h2>${title}</h2>${body}<div class="ft"><button onclick="closeM()">Close</button>${onSave?`<button class="p" id="msave">${label||'Save'}</button>`:''}</div>`;
+ $('ov').style.display='flex';if(onSave)$('msave').onclick=()=>{if(onSave()!==false)closeM()};
+}
+function closeM(){$('ov').style.display='none'}
+/* ================= NAVIGATION ================= */
+const NAV=[['dash','Dashboard'],['entry','New Milk Entry',1],['daily','Daily Collection',1],['cust','Customers'],['cats','Rate Categories'],['chart','Rate Chart'],['sales','Milk Sales'],['stock','Milk Stock'],['week','Weekly Summary'],['stmt','Customer Statement'],['rep','Reports'],['set','Settings']];
+let cur='dash';
+function go(v){cur=v;$('side').classList.remove('open');
+ $('side').innerHTML='<div class="brand">'+S.settings.dairy+'</div><button class="lang" onclick="toggleLang()">'+(LANG=='hi'?'English':'हिंदी')+'</button>'+NAV.map(n=>(n[0]=='entry'?'<div class="grp">Milk Collection</div>':'')+`<a class="${n[2]?'sub ':''}${n[0]==v?'on':''}" onclick="go('${n[0]}')">${n[1]}</a>`).join('')+'<a onclick="if(confirm(\'Reset all demo data?\'))resetDemo()" class="sub muted" style="margin-top:14px">Reset demo data</a>';
+ $('bn').innerHTML=[['dash','Dashboard'],['entry','New Milk Entry'],['sales','Milk Sales'],['stock','Milk Stock']].map(n=>`<button class="${n[0]==v?'on':''}" onclick="go('${n[0]}')">${n[1]}</button>`).join('')+'<button onclick="document.getElementById(\'side\').classList.add(\'open\')">☰<br>More</button>';
+ $('main').innerHTML=VIEWS[v]();if(INIT[v])INIT[v]();window.scrollTo(0,0)}
+const FLOW=['Customer','Category','Milk Entry','Qty + Fat + SNF','Rate','Total Purchased','Milk Sales','Stock Balance','Next Week Carry Forward','Report / PDF','Share'];
+/* ================= VIEWS ================= */
+const VIEWS={},INIT={};
+VIEWS.dash=()=>{const w=weekStats(),ct=catTotals(w.en);
+ return`<h1>Dashboard</h1><div class="muted">Week ${dmy(S.settings.weekFrom)} – ${dmy(S.settings.weekTo)} (demo data)</div>
+ <div class="cards">${[['Previous Balance',w.prev],['This Week Purchase',w.pur],['Total Available',w.avail],['Total Sold',w.sold],['Current Balance',w.bal]].map((c,i)=>`<div class="card ${i==4?'g':''}"><div class="l">${c[0]}</div><div class="v">${L(c[1])}</div></div>`).join('')}</div>
+ <div class="sec"><h2>Business flow</h2><div class="flow">${FLOW.map((f,i)=>(i?'<i>→</i>':'')+`<span>${f}</span>`).join('')}</div></div>
+ <div class="sec"><h2>Category summary</h2>${catTable(ct)}</div>
+ <div class="note">Closing balance ${L(w.bal)} will be carried forward to next week.</div>`};
+function catTable(ct){return table([['Category'],['Milk Type'],['Quantity',1],['Avg Rate',1],['Amount',1]],ct.rows.map(x=>[x.c.name,x.c.type,L(x.qty),x.qty?R(x.amt/x.qty)+'/L':'-',R(x.amt)]),['FINAL TOTAL','',L(ct.qty),ct.qty?R(ct.amt/ct.qty)+'/L':'-',R(ct.amt)])}
+/* --- Milk Entry --- */
+VIEWS.entry=()=>`<h1>New Milk Entry</h1><div class="sec"><div class="f">
+ <div><label>Date</label><input type="date" id="e_date" value="${S.settings.weekTo}"></div>
+ <div><label>Shift</label><select id="e_shift"><option>Morning</option><option>Evening</option></select></div>
+ <div><label>Customer</label><select id="e_cust" onchange="entryFill()">${opts(S.customers.filter(c=>c.status=='Active').map(c=>[c.id,c.id+' – '+c.name]))}</select></div>
+ <div><label>Category / Milk Type</label><input id="e_cat" readonly></div>
+ <div><label>Quantity (L)</label><input type="number" id="e_qty" step="0.1" oninput="entryCalc()"></div>
+ <div><label>Fat %</label><input type="number" id="e_fat" step="0.1" value="5.5" oninput="entryCalc()"></div>
+ <div><label>SNF %</label><input type="number" id="e_snf" step="0.1" value="8.4" oninput="entryCalc()"></div>
+ <div><label>Applicable Rate (₹/L)</label><input id="e_rate" readonly></div>
+ <div class="w"><label>Total Amount</label><input id="e_amt" readonly style="font-weight:700"></div></div>
+ <div id="e_msg"></div><div style="margin-top:12px"><button class="p" onclick="entrySave()">Add Entry</button></div></div>
+ <div class="sec"><h2>Recent entries</h2>${entryTable(S.milkEntries.slice(-8).reverse())}</div>`;
+INIT.entry=()=>entryFill();
+function entryFill(){const c=S.customers.find(x=>x.id==$('e_cust').value);if(!c)return;$('e_cat').value='Category '+c.cat+' · '+c.type;entryCalc()}
+function entryCalc(){const c=S.customers.find(x=>x.id==$('e_cust').value);if(!c)return;const r=rateFor(catOf(c.cat),+$('e_fat').value,+$('e_snf').value);$('e_rate').value=R(r);$('e_amt').value=R((+$('e_qty').value||0)*r)}
+function entrySave(){const c=S.customers.find(x=>x.id==$('e_cust').value),q=+$('e_qty').value,fat=+$('e_fat').value,snf=+$('e_snf').value;
+ if(!c||q<=0||!fat||!snf){$('e_msg').innerHTML='<div class="warn">Please enter quantity, fat and SNF.</div>';return}
+ const rate=rateFor(catOf(c.cat),fat,snf);
+ S.milkEntries.push({id:Date.now(),date:$('e_date').value,shift:$('e_shift').value,cust:c.id,cat:c.cat,type:c.type,qty:q,fat,snf,rate,amt:+(q*rate).toFixed(2)});save();go('entry');
+ $('e_msg').innerHTML='<div class="note">Entry added. Dashboard and stock updated.</div>'}
+function entryTable(en,withTot){const rows=en.map(e=>[dmy(e.date),e.shift,custName(e.cust),e.cat,e.type,L(e.qty),e.fat,e.snf,R(e.rate),R(e.amt)]);
+ return table([['Date'],['Shift'],['Customer'],['Cat'],['Milk Type'],['Qty',1],['Fat',1],['SNF',1],['Rate',1],['Amount',1]],rows,withTot?['TOTAL','','','','',L(sum(en,e=>e.qty)),'','','',R(sum(en,e=>e.amt))]:null)}
+/* --- Daily Collection with filters --- */
+VIEWS.daily=()=>`<h1>Daily Collection</h1><div class="bar">
+ <div><label>Date</label><input type="date" id="f_date" value="${S.settings.weekTo}" onchange="dailyRender()"></div>
+ <div><label>Search customer</label><input id="f_q" oninput="dailyRender()" placeholder="Name or ID"></div>
+ <div><label>Category</label><select id="f_cat" onchange="dailyRender()">${opts(S.categories.map(c=>c.id),'','All')}</select></div>
+ <div><label>Milk type</label><select id="f_type" onchange="dailyRender()">${opts(['Cow','Buffalo'],'','All')}</select></div>
+ <div><label>Shift</label><select id="f_shift" onchange="dailyRender()">${opts(['Morning','Evening'],'','All')}</select></div></div>
+ <div class="cards" style="grid-template-columns:repeat(3,1fr)" id="d_cards"></div><div class="sec" id="d_tab"></div>`;
+INIT.daily=()=>dailyRender();
+function dailyRender(){const d=$('f_date').value,q=$('f_q').value.toLowerCase(),c=$('f_cat').value,t=$('f_type').value,s=$('f_shift').value;
+ const day=S.milkEntries.filter(e=>e.date==d),m=sum(day.filter(e=>e.shift=='Morning'),e=>e.qty),ev=sum(day.filter(e=>e.shift=='Evening'),e=>e.qty);
+ $('d_cards').innerHTML=[['Morning Total',m],['Evening Total',ev],['Daily Total',m+ev]].map(x=>`<div class="card"><div class="l">${x[0]}</div><div class="v">${L(x[1])}</div></div>`).join('');
+ const f=day.filter(e=>(!c||e.cat==c)&&(!t||e.type==t)&&(!s||e.shift==s)&&(!q||(custName(e.cust)+e.cust).toLowerCase().includes(q)));
+ $('d_tab').innerHTML=entryTable(f,1)}
+/* --- Customers --- */
+VIEWS.cust=()=>`<h1>Customers</h1><div class="bar"><div><label>Search</label><input id="c_q" oninput="custRender()"></div><div><label>Category</label><select id="c_cat" onchange="custRender()">${opts(S.categories.map(c=>c.id),'','All')}</select></div><div style="margin-left:auto"><button class="p" onclick="custForm()">+ Add Customer</button></div></div><div class="sec" id="c_tab"></div>`;
+INIT.cust=()=>custRender();
+function custRender(){const q=$('c_q').value.toLowerCase(),c=$('c_cat').value;
+ $('c_tab').innerHTML=table([['Customer ID'],['Name'],['Mobile'],['Milk Type'],['Category'],['Status'],['Action']],
+ S.customers.filter(x=>(!c||x.cat==c)&&(!q||(x.name+x.id).toLowerCase().includes(q))).map(x=>[x.id,x.name,x.mobile,x.type,x.cat,`<span class="tag ${x.status=='Active'?'a':'i'}">${x.status}</span>`,`<button class="s" onclick="custForm('${x.id}')">Edit</button> <button class="s" onclick="stmtOpen('${x.id}')">Statement</button>`]))}
+function custForm(id){const c=S.customers.find(x=>x.id==id)||{id:'CUST-'+String(S.customers.length+1).padStart(3,'0'),name:'',mobile:'',type:'Buffalo',cat:'A',status:'Active'};
+ modal(id?'Edit Customer':'Add Customer',`<div class="f"><div><label>Customer Name</label><input id="m_n" value="${c.name}"></div><div><label>Mobile Number</label><input id="m_m" value="${c.mobile}"></div>
+ <div><label>Customer ID</label><input id="m_i" value="${c.id}" ${id?'readonly':''}></div><div><label>Milk Type</label><select id="m_t">${opts(['Buffalo','Cow'],c.type)}</select></div>
+ <div><label>Category</label><select id="m_c">${opts(S.categories.map(x=>x.id),c.cat)}</select></div><div><label>Status</label><select id="m_s">${opts(['Active','Inactive'],c.status)}</select></div></div>`,()=>{
+ const n=$('m_n').value.trim();if(!n){alert('Name required');return false}
+ const o={id:$('m_i').value,name:n,mobile:$('m_m').value,type:$('m_t').value,cat:$('m_c').value,status:$('m_s').value};
+ if(id)Object.assign(c,o);else S.customers.push(o);save();go('cust')})}
+/* --- Rate Categories --- */
+VIEWS.cats=()=>{const ct=catTotals(weekStats().en);return`<h1>Rate Categories</h1><div class="muted">Five categories, each with its own rate.</div><div class="grid3" style="margin-top:12px">${ct.rows.map(x=>`<div class="card"><h2>Category ${x.c.name} <span class="tag ${x.c.status=='Active'?'a':'i'}">${x.c.status}</span></h2>
+ <div>${x.c.type} · Base rate <b>${R(x.c.rate)}/L</b></div><div class="muted">Customers: ${S.customers.filter(c=>c.cat==x.c.id).length}</div>
+ <div>Total milk: <b>${L(x.qty)}</b></div><div>Total amount: <b>${R(x.amt)}</b></div><div style="margin-top:8px"><button class="s" onclick="catForm('${x.c.id}')">Edit Rate</button></div></div>`).join('')}
+ <div class="card g"><h2>FINAL TOTAL</h2><div>Total milk: <b>${L(ct.qty)}</b></div><div>Total amount: <b>${R(ct.amt)}</b></div></div></div>`};
+function catForm(id){const c=catOf(id);modal('Edit Rate – Category '+c.id,`<div class="f"><div><label>Category name</label><input id="m_n" value="${c.name}"></div><div><label>Milk type</label><select id="m_t">${opts(['Buffalo','Cow'],c.type)}</select></div>
+ <div><label>Base rate (₹/L)</label><input type="number" id="m_r" value="${c.rate}"></div><div><label>Status</label><select id="m_s">${opts(['Active','Inactive'],c.status)}</select></div></div>
+ <p class="muted">New rate applies to new entries; old entries keep their rate.</p>`,()=>{c.name=$('m_n').value||c.name;c.type=$('m_t').value;c.rate=+$('m_r').value;c.status=$('m_s').value;save();go('cats')})}
+/* --- Rate Chart --- */
+VIEWS.chart=()=>{const fats=[4.5,5,5.2,5.5,5.8,6,6.5],snfs=[8,8.2,8.4,8.5,8.6,8.8];
+ return`<h1>Rate Chart</h1><div class="warn" style="background:#F5F5F2;border-color:#D9D9D4;color:#555">Demo values only – not the client's actual rates. The real chart will replace the function <code>chartRate()</code>.</div>
+ <div class="sec"><h2>Rate finder</h2><div class="bar"><div><label>Category</label><select id="r_c" onchange="chartCalc()">${opts(S.categories.map(c=>c.id))}</select></div><div><label>Fat %</label><input type="number" id="r_f" step="0.1" value="5.5" oninput="chartCalc()"></div><div><label>SNF %</label><input type="number" id="r_s" step="0.1" value="8.4" oninput="chartCalc()"></div><div><label>Rate</label><input id="r_o" readonly style="font-weight:700"></div></div></div>
+ <div class="sec"><h2>Fat × SNF matrix (base chart, ₹/L)</h2>${table([['Fat \\ SNF'],...snfs.map(s=>[s,1])],fats.map(f=>[f,...snfs.map(s=>chartRate(f,s))]))}</div>`};
+INIT.chart=()=>chartCalc();
+function chartCalc(){$('r_o').value=R(rateFor(catOf($('r_c').value),+$('r_f').value,+$('r_s').value))+' /L'}
+/* --- Sales --- */
+VIEWS.sales=()=>{const w=weekStats();return`<h1>Milk Sales</h1><div class="bar"><div class="card g"><div class="l">Available stock</div><div class="v">${L(w.bal)}</div></div><div style="margin-left:auto"><button class="p" onclick="saleForm()">+ Add Sale</button></div></div>
+ <div class="sec">${table([['Date'],['Buyer'],['Milk Type'],['Qty',1],['Rate',1],['Amount',1]],w.sl.map(s=>[dmy(s.date),s.buyer,s.type,L(s.qty),R(s.rate),R(s.amt)]),['TOTAL','','',L(w.sold),'',R(sum(w.sl,s=>s.amt))])}</div>`};
+function saleForm(){const w=weekStats();modal('Add Sale',`<div class="muted">Available stock: <b>${L(w.bal)}</b></div><div class="f" style="margin-top:8px"><div><label>Date</label><input type="date" id="m_d" value="${S.settings.weekTo}"></div><div><label>Buyer</label><input id="m_b"></div>
+ <div><label>Milk Type</label><select id="m_t">${opts(['Buffalo','Cow'])}</select></div><div><label>Quantity Sold (L)</label><input type="number" id="m_q" oninput="saleCalc()"></div>
+ <div><label>Rate (₹/L)</label><input type="number" id="m_r" value="50" oninput="saleCalc()"></div><div><label>Total Amount</label><input id="m_a" readonly></div></div><div id="m_w"></div>`,()=>{
+ const q=+$('m_q').value,bal=weekStats().bal;
+ if(q<=0||!$('m_b').value){$('m_w').innerHTML='<div class="warn">Enter buyer and quantity.</div>';return false}
+ if(q>bal){$('m_w').innerHTML=`<div class="warn">Cannot sell ${L(q)} – only ${L(bal)} available.</div>`;return false}
+ const r=+$('m_r').value;S.sales.push({id:Date.now(),date:$('m_d').value,buyer:$('m_b').value,type:$('m_t').value,qty:q,rate:r,amt:q*r});save();go('sales')})}
+function saleCalc(){$('m_a').value=R((+$('m_q').value||0)*(+$('m_r').value||0))}
+/* --- Stock --- */
+VIEWS.stock=()=>{const w=weekStats(),ct=catTotals(w.en);return`<h1>Milk Stock</h1><div class="cards">${[['Previous Balance',w.prev],['New Purchase',w.pur],['Total Available',w.avail],['Total Sold',w.sold],['Current Balance',w.bal]].map((c,i)=>`<div class="card ${i==4?'g':''}"><div class="l">${c[0]}</div><div class="v">${L(c[1])}</div></div>`).join('')}</div>
+ <div class="sec"><h2>Category-wise stock</h2>${table([['Category'],['Milk Type'],['Purchased',1],['Share of current balance',1]],ct.rows.map(x=>[x.c.name,x.c.type,L(x.qty),L(ct.qty?w.bal*x.qty/ct.qty:0)]),['TOTAL','',L(ct.qty),L(w.bal)])}<p class="muted">Sales are recorded per milk type, so category balance is shown as a proportional share (demo logic).</p></div>`};
+/* --- Weekly --- */
+VIEWS.week=()=>{const w=weekStats(),s=S.settings;return`<h1>Weekly Summary</h1><div class="muted">${dmy(s.weekFrom)} – ${dmy(s.weekTo)}</div>
+ <div class="sec"><div class="eq"><div class="card"><div class="l">Previous Week Balance</div><div class="v">${L(w.prev)}</div></div><b>+</b><div class="card"><div class="l">Current Week Purchase</div><div class="v">${L(w.pur)}</div></div><b>=</b><div class="card g"><div class="l">Total Available</div><div class="v">${L(w.avail)}</div></div></div>
+ <div class="eq" style="margin-top:12px"><div class="card g"><div class="l">Total Available</div><div class="v">${L(w.avail)}</div></div><b>−</b><div class="card"><div class="l">Milk Sold</div><div class="v">${L(w.sold)}</div></div><b>=</b><div class="card g"><div class="l">Closing Balance</div><div class="v">${L(w.bal)}</div></div></div>
+ <div class="note">Closing balance will be carried forward to next week.</div><button class="p" onclick="carry()">Close week &amp; carry forward</button></div>
+ <div class="sec"><h2>Category totals</h2>${catTable(catTotals(w.en))}</div>`};
+function carry(){const w=weekStats(),s=S.settings;if(!confirm(`Carry forward ${L(w.bal)} to next week?`))return;
+ const add=d=>{const x=new Date(d);x.setDate(x.getDate()+7);return x.toISOString().slice(0,10)};
+ s.opening=+w.bal.toFixed(1);s.weekFrom=add(s.weekFrom);s.weekTo=add(s.weekTo);save();go('week')}
+/* --- Reports --- */
+const RT=[['daily','Daily Report'],['weekly','Weekly Report'],['category','Category Report'],['customer','Customer Report'],['purchase','Milk Purchase Report'],['sales','Milk Sales Report'],['stock','Stock Report']];
+VIEWS.rep=()=>`<h1>Reports</h1><div class="bar"><div><label>Report</label><select id="p_t" onchange="repRender()">${opts(RT)}</select></div><div><label>Date from</label><input type="date" id="p_f" value="${S.settings.weekFrom}" onchange="repRender()"></div><div><label>Date to</label><input type="date" id="p_to" value="${S.settings.weekTo}" onchange="repRender()"></div>
+ <div style="margin-left:auto"><button class="p" onclick="repPrint()">Generate PDF</button> <button onclick="repShare()">Share Report</button></div></div><div class="sec" id="p_out"></div>`;
+INIT.rep=()=>repRender();
+function reportData(t,f,to){
+ const en=S.milkEntries.filter(e=>inRange(e.date,f,to)),sl=S.sales.filter(e=>inRange(e.date,f,to)),w=weekStats();
+ const title=RT.find(x=>x[0]==t)[1];let h,rows,tot;
+ if(t=='category'){const c=catTotals(en);h=[['Category'],['Milk Type'],['Quantity',1],['Amount',1]];rows=c.rows.map(x=>[x.c.name,x.c.type,L(x.qty),R(x.amt)]);tot=['FINAL TOTAL','',L(c.qty),R(c.amt)]}
+ else if(t=='customer'){h=[['Customer'],['Category'],['Milk Type'],['Quantity',1],['Amount',1]];rows=S.customers.map(c=>{const e=en.filter(x=>x.cust==c.id);return[c.id+' '+c.name,c.cat,c.type,L(sum(e,x=>x.qty)),R(sum(e,x=>x.amt))]});tot=['TOTAL','','',L(sum(en,e=>e.qty)),R(sum(en,e=>e.amt))]}
+ else if(t=='sales'){h=[['Date'],['Buyer'],['Type'],['Qty',1],['Rate',1],['Amount',1]];rows=sl.map(s=>[dmy(s.date),s.buyer,s.type,L(s.qty),R(s.rate),R(s.amt)]);tot=['TOTAL','','',L(sum(sl,s=>s.qty)),'',R(sum(sl,s=>s.amt))]}
+ else if(t=='stock'){h=[['Item'],['Quantity',1]];rows=[['Previous Balance',L(w.prev)],['New Purchase',L(w.pur)],['Total Available',L(w.avail)],['Total Sold',L(w.sold)]];tot=['Current Balance',L(w.bal)]}
+ else{const e=t=='daily'?en.filter(x=>x.date==to):en;h=[['Date'],['Shift'],['Customer'],['Cat'],['Type'],['Qty',1],['Fat',1],['SNF',1],['Rate',1],['Amount',1]];
+  rows=e.map(x=>[dmy(x.date),x.shift,custName(x.cust),x.cat,x.type,L(x.qty),x.fat,x.snf,R(x.rate),R(x.amt)]);tot=['TOTAL','','','','',L(sum(e,x=>x.qty)),'','','',R(sum(e,x=>x.amt))]}
+ return{title,h,rows,tot,period:dmy(f)+' – '+dmy(to),sum:{prev:w.prev,sold:sum(sl,s=>s.qty),close:w.bal}};
+}
+function repRender(){const d=reportData($('p_t').value,$('p_f').value,$('p_to').value);$('p_out').innerHTML=`<h2>${d.title} · ${d.period}</h2>`+table(d.h,d.rows,d.tot)+`<p>Previous balance: <b>${L(d.sum.prev)}</b> · Milk sold: <b>${L(d.sum.sold)}</b> · Closing balance: <b>${L(d.sum.close)}</b></p>`}
+function printDoc(title,period,inner,extra){
+ const s=S.settings,win=window.open('','_blank');if(!win){alert('Allow pop-ups to generate the PDF.');return}
+ win.document.write(`<html><head><title>${title}</title><style>body{font:13px Arial;margin:28px;color:#000}h1{margin:0;font-size:20px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #999;padding:5px 7px;text-align:left}th{background:#eee}.n{text-align:right}tr.tot td{font-weight:bold;background:#f3f3f3}.tw{max-height:none}</style></head><body>
+ <h1>${s.dairy}</h1><div>${s.addr} · ${s.phone}</div><hr><h2>${title}</h2><div>Period: ${period}</div>${inner}${extra||''}<p style="margin-top:30px;color:#666">${s.footer}</p><script>setTimeout(function(){window.print()},300)<\/script></body></html>`);win.document.close()}
+function repPrint(){const d=reportData($('p_t').value,$('p_f').value,$('p_to').value);
+ printDoc(d.title,d.period,table(d.h,d.rows,d.tot).replace(/<th class="n">/g,'<th class="n">'),`<p>Previous balance: <b>${L(d.sum.prev)}</b><br>Milk sold: <b>${L(d.sum.sold)}</b><br>Closing balance: <b>${L(d.sum.close)}</b></p>`)}
+function shareText(title,body){return`${S.settings.dairy}\n${title}\n${body}`}
+function shareDoc(title,body){const txt=shareText(title,body);
+ if(navigator.share){navigator.share({title,text:txt}).catch(()=>{})}
+ else modal('Share Report',`<p class="muted">Web Share not supported here. Demo options:</p><div class="bar"><button onclick="window.open('https://wa.me/?text='+encodeURIComponent(${JSON.stringify(txt)}))">WhatsApp</button><button onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(txt)});alert('Copied')">Copy Link / Text</button><button onclick="window.print()">Download / Print</button></div>`)}
+function repShare(){const d=reportData($('p_t').value,$('p_f').value,$('p_to').value);shareDoc(d.title,`Period: ${d.period}\nPrev balance: ${L(d.sum.prev)}\nSold: ${L(d.sum.sold)}\nClosing: ${L(d.sum.close)}`)}
+/* --- Customer Statement --- */
+let stmtCust=null;
+VIEWS.stmt=()=>`<h1>Customer Statement</h1><div class="bar"><div><label>Customer</label><select id="s_c" onchange="stmtRender()">${opts(S.customers.map(c=>[c.id,c.id+' – '+c.name]),stmtCust)}</select></div><div><label>From</label><input type="date" id="s_f" value="${S.settings.weekFrom}" onchange="stmtRender()"></div><div><label>To</label><input type="date" id="s_t" value="${S.settings.weekTo}" onchange="stmtRender()"></div>
+ <div style="margin-left:auto"><button class="p" onclick="stmtPrint()">Generate PDF</button> <button onclick="stmtShare()">Share</button></div></div><div class="sec" id="s_out"></div>`;
+INIT.stmt=()=>stmtRender();
+function stmtOpen(id){stmtCust=id;go('stmt')}
+function stmtData(){const c=S.customers.find(x=>x.id==$('s_c').value),f=$('s_f').value,t=$('s_t').value,en=S.milkEntries.filter(e=>e.cust==c.id&&inRange(e.date,f,t));
+ const days=[...new Set(en.map(e=>e.date))].sort(),avg=(a,k)=>a.length?(sum(a,x=>x[k])/a.length).toFixed(1):'-';
+ const rows=days.map(d=>{const a=en.filter(e=>e.date==d),m=sum(a.filter(e=>e.shift=='Morning'),e=>e.qty),ev=sum(a.filter(e=>e.shift=='Evening'),e=>e.qty),amt=sum(a,e=>e.amt);return[dmy(d),m?L(m):'-',ev?L(ev):'-',L(m+ev),avg(a,'fat'),avg(a,'snf'),R(amt/(m+ev)),R(amt)]});
+ const q=sum(en,e=>e.qty),amt=sum(en,e=>e.amt);
+ return{c,period:dmy(f)+' – '+dmy(t),head:[['Date'],['Morning',1],['Evening',1],['Total Qty',1],['Fat',1],['SNF',1],['Rate',1],['Amount',1]],rows,tot:['TOTAL MILK','','',L(q),'','','',R(amt)],q,amt,hdr:`<p><b>${c.name}</b> · ${c.id} · Category ${c.cat} · ${c.type}</p>`}}
+function stmtRender(){const d=stmtData();$('s_out').innerHTML=d.hdr+table(d.head,d.rows,d.tot)+`<p>Total Milk: <b>${L(d.q)}</b> · Total Amount: <b>${R(d.amt)}</b></p>`}
+function stmtPrint(){const d=stmtData();printDoc('Customer Statement',d.period,d.hdr+table(d.head,d.rows,d.tot))}
+function stmtShare(){const d=stmtData();shareDoc('Statement – '+d.c.name,`Period: ${d.period}\nTotal milk: ${L(d.q)}\nTotal amount: ${R(d.amt)}`)}
+/* --- Settings --- */
+VIEWS.set=()=>{const s=S.settings;return`<h1>Settings</h1><div class="sec"><div class="f"><div><label>Dairy Name</label><input id="t_d" value="${s.dairy}"></div><div><label>Contact Number</label><input id="t_p" value="${s.phone}"></div>
+ <div class="w"><label>Address</label><input id="t_a" value="${s.addr}"></div><div><label>Default Currency</label><input value="${s.currency}" readonly></div><div><label>Default Milk Unit</label><input value="${s.unit}" readonly></div>
+ <div><label>Week Start Day</label><select id="t_w">${opts(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],s.weekStart)}</select></div><div><label>Report footer text</label><input id="t_f" value="${s.footer}"></div></div>
+ <div style="margin-top:12px"><button class="p" onclick="setSave()">Save Settings</button></div></div>`};
+function setSave(){const s=S.settings;s.dairy=$('t_d').value;s.phone=$('t_p').value;s.addr=$('t_a').value;s.weekStart=$('t_w').value;s.footer=$('t_f').value;save();go('set')}
+
+/* ================= LANGUAGE (Hindi / English) ================= */
+let LANG=localStorage.getItem('dairy_lang')||'en';
+function toggleLang(){LANG=LANG=='hi'?'en':'hi';localStorage.setItem('dairy_lang',LANG);go(cur)}
+const HI={'More':'और','Reset demo data':'डेमो डेटा वापस करें','Milk Collection':'दूध संग्रह','New Milk Entry':'नई दूध एंट्री','Daily Collection':'रोज़ का दूध','Rate Categories':'रेट श्रेणी','Rate Chart':'रेट चार्ट','Milk Sales':'दूध बिक्री','Milk Stock':'दूध स्टॉक','Weekly Summary':'हफ़्ते का हिसाब','Customer Statement':'ग्राहक का हिसाब','Customers':'ग्राहक','Customer':'ग्राहक','Dashboard':'मुख्य पेज','Reports':'रिपोर्ट','Report':'रिपोर्ट','Settings':'सेटिंग',
+'Previous Week Balance':'पिछले हफ़्ते का बचा दूध','Previous Balance':'पिछला बचा दूध','This Week Purchase':'इस हफ़्ते की खरीद','Current Week Purchase':'इस हफ़्ते की खरीद','New Purchase':'नई खरीद','Total Available':'कुल उपलब्ध दूध','Total Sold':'कुल बिका दूध','Current Balance':'अभी बचा दूध','Closing Balance':'अंतिम बचा दूध','Milk Sold':'बिका दूध','Business flow':'काम का क्रम','Category summary':'श्रेणी अनुसार हिसाब','Category-wise stock':'श्रेणी अनुसार स्टॉक','Category totals':'श्रेणी अनुसार कुल',
+'Category':'श्रेणी','Milk Type':'दूध का प्रकार','Milk type':'दूध का प्रकार','Quantity Sold (L)':'बेचा गया दूध (लीटर)','Quantity (L)':'मात्रा (लीटर)','Quantity':'मात्रा','Qty':'मात्रा','Avg Rate':'औसत रेट','Rate':'रेट','Amount':'रकम','FINAL TOTAL':'कुल योग','TOTAL MILK':'कुल दूध','TOTAL':'कुल','Total Qty':'कुल मात्रा','Total Amount':'कुल रकम','Total milk':'कुल दूध','Total Milk':'कुल दूध','Cow':'गाय','Buffalo':'भैंस','Morning':'सुबह','Evening':'शाम','Shift':'समय','Date from':'तारीख से','Date to':'तारीख तक','Date':'तारीख','From':'से','To':'तक','Search customer':'ग्राहक खोजें','Search':'खोजें','All':'सभी','Name or ID':'नाम या ID',
+'Add Entry':'एंट्री जोड़ें','Recent entries':'हाल की एंट्री','Applicable Rate (₹/L)':'लागू रेट (₹/लीटर)','Category / Milk Type':'श्रेणी / दूध प्रकार','Total Amount':'कुल रकम','Fat %':'फैट %','SNF %':'SNF %','Fat':'फैट',
+'+ Add Customer':'+ ग्राहक जोड़ें','Add Customer':'ग्राहक जोड़ें','Edit Customer':'ग्राहक बदलें','Customer Name':'ग्राहक का नाम','Mobile Number':'मोबाइल नंबर','Mobile':'मोबाइल','Customer ID':'ग्राहक ID','Status':'स्थिति','Active':'चालू','Inactive':'बंद','Action':'काम','Edit Rate':'रेट बदलें','Edit':'बदलें','Statement':'हिसाब','Name':'नाम',
+'Five categories, each with its own rate.':'पाँच श्रेणियाँ, हर एक का अपना रेट।','Base rate':'मूल रेट','Base rate (₹/L)':'मूल रेट (₹/लीटर)','Category name':'श्रेणी का नाम','Customers:':'ग्राहक:','Total amount':'कुल रकम','Edit Rate –':'रेट बदलें –','New rate applies to new entries; old entries keep their rate.':'नया रेट सिर्फ़ नई एंट्री पर लगेगा, पुरानी एंट्री का रेट वही रहेगा।',
+'Rate finder':'रेट देखें','Fat × SNF matrix (base chart, ₹/L)':'फैट × SNF रेट सारणी (₹/लीटर)','Demo values only – not the client\'s actual rates. The real chart will replace the function':'ये सिर्फ़ डेमो रेट हैं, असली रेट नहीं। असली चार्ट बाद में लगेगा।',
+'+ Add Sale':'+ बिक्री जोड़ें','Add Sale':'बिक्री जोड़ें','Available stock':'उपलब्ध दूध','Available stock:':'उपलब्ध दूध:','Buyer':'खरीदने वाला','Quantity Sold':'बेचा दूध','Enter buyer and quantity.':'खरीदने वाले का नाम और मात्रा लिखें।','Cannot sell':'इतना नहीं बेच सकते:','only':'सिर्फ़','available.':'उपलब्ध है।',
+'Purchased':'खरीदा','Share of current balance':'बचे दूध में हिस्सा','Closing balance will be carried forward to next week.':'अंतिम बचा दूध अगले हफ़्ते में जोड़ दिया जाएगा।','Close week & carry forward':'हफ़्ता बंद करें और आगे ले जाएँ','will be carried forward to next week.':'अगले हफ़्ते में जोड़ दिया जाएगा।','Closing balance':'अंतिम बचा दूध','Week':'हफ़्ता','(demo data)':'(डेमो डेटा)',
+'Generate PDF':'PDF बनाएँ','Share Report':'रिपोर्ट भेजें','Share':'भेजें','Daily Report':'रोज़ की रिपोर्ट','Weekly Report':'हफ़्ते की रिपोर्ट','Category Report':'श्रेणी रिपोर्ट','Customer Report':'ग्राहक रिपोर्ट','Milk Purchase Report':'दूध खरीद रिपोर्ट','Milk Sales Report':'दूध बिक्री रिपोर्ट','Stock Report':'स्टॉक रिपोर्ट','Item':'विवरण','Milk sold':'बिका दूध','Prev balance':'पिछला बचा','Previous balance':'पिछला बचा दूध','Date':'तारीख','Period':'अवधि',
+'Dairy Name':'डेयरी का नाम','Contact Number':'संपर्क नंबर','Address':'पता','Default Currency':'मुद्रा','Default Milk Unit':'दूध की इकाई','Week Start Day':'हफ़्ता शुरू होने का दिन','Report footer text':'रिपोर्ट के नीचे का लेख','Save Settings':'सेटिंग सेव करें','Save':'सेव करें','Close':'बंद करें','Please enter quantity, fat and SNF.':'कृपया मात्रा, फैट और SNF लिखें।','Entry added. Dashboard and stock updated.':'एंट्री जुड़ गई। मुख्य पेज और स्टॉक बदल गया।',
+'Customer':'ग्राहक','Category':'श्रेणी','Cat':'श्रेणी','Web Share not supported here. Demo options:':'इस ब्राउज़र में शेयर नहीं चलता। ये विकल्प लें:','Copy Link / Text':'कॉपी करें','Download / Print':'डाउनलोड / प्रिंट','WhatsApp':'WhatsApp','Monday':'सोमवार','Tuesday':'मंगलवार','Wednesday':'बुधवार','Thursday':'गुरुवार','Friday':'शुक्रवार','Saturday':'शनिवार','Sunday':'रविवार',
+'Total':'कुल','Morning Total':'सुबह का कुल','Evening Total':'शाम का कुल','Daily Total':'दिन का कुल','Business flow':'काम का क्रम','Category ':'श्रेणी ','Category A':'श्रेणी A'}
+const HIK=Object.keys(HI).sort((a,b)=>b.length-a.length);
+function trNode(root){if(LANG!='hi'||!root)return;
+ const w=document.createTreeWalker(root.nodeType==1?root:root.parentNode,NodeFilter.SHOW_TEXT);let n,list=[];while(n=w.nextNode())list.push(n);
+ list.forEach(n=>{let v=n.nodeValue;if(!v.trim()||/[\u0900-\u097F]/.test(v))return;let o=v;HIK.forEach(k=>{if(v.includes(k))v=v.split(k).join(HI[k])});if(v!==o)n.nodeValue=v});
+ if(root.querySelectorAll)root.querySelectorAll('[placeholder]').forEach(e=>{const h=HI[e.placeholder];if(h)e.placeholder=h})}
+new MutationObserver(m=>{if(LANG!='hi')return;m.forEach(x=>x.addedNodes.forEach(n=>{if(n.nodeType==1||n.nodeType==3)trNode(n.nodeType==3?n.parentNode:n)}))}).observe(document.body,{childList:true,subtree:true});
+/* ================= START ================= */
+loadAll();save();go('dash');
+</script></body></html>
